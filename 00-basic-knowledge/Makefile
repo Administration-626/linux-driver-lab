@@ -22,5 +22,6 @@ misc: app
 
 clean:
 	make -C $(KDIR) M=$(PWD) clean
+	rm -f app
 
 .PHONY: all export_symbol import_symbol misc clean

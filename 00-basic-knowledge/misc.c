@@ -5,6 +5,8 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
+#include <linux/fs.h>
+#include <linux/uaccess.h>
 
 static int misc_open(struct inode *inode, struct file *file)
 {
@@ -20,13 +22,24 @@ static int misc_release(struct inode *inode, struct file *file)
 
 static ssize_t misc_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
+    int ret;
+    char data[] = "Hello from misc device\n";
+
     printk("misc read\n");
-    return 0;
+    ret = copy_to_user(buf, data, sizeof(data));
+    printk("copy_to_user returned: %d\n", ret);
+
+    return sizeof(data);
 }
 
 static ssize_t misc_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
     printk("misc write\n");
+
+    char kbuf[100];
+    copy_from_user(kbuf, buf, count);
+    printk("Received data: %.*s\n", (int)count, kbuf);
+
     return count;
 }
 

@@ -14,6 +14,8 @@ int main()
     }
 
     ret = read(fd, buffer, sizeof(buffer));
+    printf("read returned: %d\n", ret);
+    printf("data: %.*s\n", ret, buffer);
     if (ret < 0) {
         perror("read");
         close(fd);
@@ -22,6 +24,7 @@ int main()
 
     ret = write(fd, buffer, 20);
     printf("write returned: %d\n", ret);
+    printf("wrote data: %.*s\n", ret, buffer);
     if (ret < 0) {
         perror("write");
         close(fd);
