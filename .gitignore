@@ -1,0 +1,24 @@
+# 编译产物
+*.o
+*.ko
+*.mod.c
+*.mod
+*.order
+*.symvers
+.*.cmd
+*.d
+*.s
+Module.symvers
+modules.order
+
+# 可执行文件
+slow_app
+
+# 临时文件
+*~
+*.swp
+.tmp_versions/
+.cache
+
+# 其他
+compile_commands.json

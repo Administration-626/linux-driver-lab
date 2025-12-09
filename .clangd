@@ -1,0 +1,53 @@
+# .clangd
+CompileFlags:
+  # 添加 Clang 需要的选项
+  Add: [
+    ; --target=aarch64-linux-gnu,  # 交叉编译（x86_64 → arm64）,指定目标架构
+    -Wno-unknown-warning-option,
+    -Wno-unused-command-line-argument,
+    -Wno-declaration-after-statement,
+    -Wno-gcc-compat,
+  ]
+  
+  # 移除 GCC 专属选项
+  # 对 LSP（clangd）来说，它们没有任何语义分析价值，只是代码生成阶段的开关
+  # clangd 报错仅仅是因为"不认识/不支持"，不会给补全、跳转、诊断带来任何正面收益
+  Remove: [
+    # x86 专有选项
+    -mpreferred-stack-boundary=*,
+    -mindirect-branch=*,
+    -mindirect-branch-register,
+    -mskip-rax-setup,
+    -mindirect-branch-cs-prefix,
+    -mstack-protector-guard=*,
+    -mstack-protector-guard-reg=*,
+    -mstack-protector-guard-offset=*,
+    -mrecord-mcount,
+    
+    # ARM64 专有选项
+    -mgeneral-regs-only,
+    -fpatchable-function-entry*,
+    -mbranch-protection*,
+    -mabi=lp64,
+    -mlittle-endian,
+    -Wa,-march=*,
+    -DARM64_ASM_ARCH=*,
+    -DCC_USING_PATCHABLE_FUNCTION_ENTRY,
+    -fno-asynchronous-unwind-tables,
+    -fno-unwind-tables,
+    
+    # 通用 GCC 选项
+    -femit-struct-debug-baseonly,
+    -fno-allow-store-data-races,
+    -fconserve-stack,
+    -fno-var-tracking-assignments,
+    -fmin-function-alignment=*,
+    -fzero-init-padding-bits=*,
+    -mfunction-return=*,
+    -falign-jumps=*,
+    -falign-loops=*,
+    
+    # 内核特有的警告选项
+    -Wno-override-init,
+    -Wno-initializer-overrides,
+  ]
