@@ -6,7 +6,7 @@
 
 int main(int argc, char *argv[])
 {
-    int fd = open("/dev/my_dev", O_RDWR);
+    int fd = open("/dev/mychardev", O_RDWR);
     if (fd < 0) {
         perror("Failed to open device");
         return EXIT_FAILURE;
