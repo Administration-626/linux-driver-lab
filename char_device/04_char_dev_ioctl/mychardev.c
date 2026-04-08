@@ -13,6 +13,12 @@
 #define MYDEV_GET_MODE    _IOR(MYDEV_IOC_MAGIC, 3, int)
 
 /*
+
+_IO：只有命令，不带数据
+_IOR：用户从驱动读数据
+_IOW：用户向驱动写数据
+_IOWR：双向
+
 应该也可以不用这些宏吧，直接定义约定
 对，完全可以。
 #define MY_GET_VAL  0x01
