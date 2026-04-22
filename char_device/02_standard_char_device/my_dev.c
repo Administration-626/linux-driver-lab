@@ -11,12 +11,12 @@
 能自己编译、加载、卸载、看 dmesg 排错
 */
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/fs.h>
+#include <linux/init.h>
+#include <linux/module.h>
 
 static struct class *cls;
 static struct device *my_dev_device;
@@ -37,11 +37,14 @@ static int my_dev_release(struct inode *inode, struct file *filp)
     return 0;
 }
 
-static ssize_t my_dev_read(struct file *filp, char __user *ubuf,
-			      size_t count, loff_t *offp)
+static ssize_t my_dev_read(
+    struct file *filp,
+    char __user *ubuf,
+    size_t count,
+    loff_t *offp)
 {
     int len;
-    
+
     printk("my_dev read\n");
 
     len = strlen(my_dev_data) + 1;
@@ -54,8 +57,11 @@ static ssize_t my_dev_read(struct file *filp, char __user *ubuf,
     return len;
 }
 
-static ssize_t my_dev_write(struct file *filp, const char __user *ubuf,
-                   size_t count, loff_t *offp)
+static ssize_t my_dev_write(
+    struct file *filp,
+    const char __user *ubuf,
+    size_t count,
+    loff_t *offp)
 {
     printk("my_dev write\n");
 
@@ -93,7 +99,8 @@ static int __init my_dev_init(void)
     mydev.owner = THIS_MODULE;
 
     cdev_init(&mydev, &my_dev_fops);
-    ret = cdev_add(&mydev, dev_id, 1); // 添加字符设备，参数：cdev结构体，设备号，设备数量
+    ret = cdev_add(
+        &mydev, dev_id, 1); // 添加字符设备，参数：cdev结构体，设备号，设备数量
     if (ret) {
         printk("cdev_add failed: %d\n", ret);
         unregister_chrdev_region(dev_id, 1);
@@ -125,7 +132,7 @@ static int __init my_dev_init(void)
 static void __exit my_dev_exit(void)
 {
     printk("my_dev exit\n");
-    device_destroy(cls, char_devid);  // 注意先销毁设备再销毁类
+    device_destroy(cls, char_devid); // 注意先销毁设备再销毁类
     cdev_del(&mydev);
     class_destroy(cls);
     unregister_chrdev_region(char_devid, 1); // 有注册就有销毁嘛

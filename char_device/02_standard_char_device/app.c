@@ -1,7 +1,8 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <fcntl.h>
+#include <unistd.h>
+
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 int main(int argc, char *argv[])
@@ -38,7 +39,6 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
     printf("Read from device: %.*s\n", (int)ret, buf);
-
 
     close(fd);
     return EXIT_SUCCESS;

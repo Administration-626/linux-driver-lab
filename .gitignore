@@ -22,3 +22,4 @@ slow_app
 
 # 其他
 compile_commands.json
+.clang-format
