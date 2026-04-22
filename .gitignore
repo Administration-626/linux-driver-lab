@@ -10,6 +10,7 @@
 *.s
 Module.symvers
 modules.order
+app
 
 # 可执行文件
 slow_app

@@ -14,4 +14,23 @@ Platform 驱动负责硬件的"发现和接入"，字符设备驱动负责提供
 
 标准化：Platform 总线统一处理设备生命周期（电源管理、热插拔），字符设备层专注 I/O 语义
 
-这么看在platform驱动看不到和字符驱动的关联
+## 这么看在platform驱动看不到和字符驱动的关联
+这里 platform driver 和 char dev 没有通过内核对象建立强绑定关系，只是代码上共享了同一份全局资源 led_res，所以在 platform 驱动的 probe 函数中获取了硬件资源并保存到全局变量后，字符设备驱动的 write 函数就可以直接使用这个全局变量来操作硬件寄存器,实际使用时当然可以灵活变通
+```
+platform driver 匹配设备树
+        ↓
+led_probe()
+        ↓
+of_iomap() 获取寄存器虚拟地址
+        ↓
+保存到全局变量 led_res.va_DR / led_res.va_DDR
+        ↓
+注册 char dev
+        ↓
+用户 write /dev/led_test
+        ↓
+led_chr_dev_write()
+        ↓
+使用 led_res.va_DR 操作硬件寄存器
+
+```
