@@ -34,3 +34,15 @@ led_chr_dev_write()
 使用 led_res.va_DR 操作硬件寄存器
 
 ```
+
+```
+在 rk3588-orangepi-5-plus.dts添加一个顶层节点
+		myled {
+			compatible = "vendor,myled";
+			led-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
+			status = "okay";
+		};
+
+
+编译了 dtbs 之后，把设备树文件复制到 /boot/dtbs/ 目录下，并重启系统，/sys/firmware/devicetree/base/gpio-leds/myled@0 就会出现，说明设备树节点被正确解析了
+```

@@ -3,10 +3,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
 #define DEVICE_PATH "/dev/chrdev_myled"
-int main()
+int main(int argc, char *argv[])
 {
     int fd;
     char buf[128];
@@ -18,14 +17,19 @@ int main()
     }
 
     // 测试写操作
-    const char *write_data = "Hello, LED!";
-    ssize_t bytes_written = write(fd, write_data, strlen(write_data));
+    char write_data = '1'; // 默认写入 "1" 来点亮 LED
+    if (argc > 1) {
+        write_data = atoi(argv[1]) ?
+            '1' :
+            '0'; // 如果提供了参数，根据参数值决定写入 "1" 还是 "0"
+    }
+    ssize_t bytes_written = write(fd, &write_data, sizeof(write_data));
     if (bytes_written < 0) {
         perror("Failed to write to device");
         close(fd);
         return EXIT_FAILURE;
     }
-    printf("Written to device: %s\n", write_data);
+    printf("Written to device: %c\n", write_data);
 
     // 测试读操作
     ssize_t bytes_read = read(fd, buf, sizeof(buf) - 1);

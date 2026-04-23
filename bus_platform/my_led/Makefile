@@ -1,4 +1,4 @@
-obj-m += myplatform.o
+obj-m += myplatform_gpio.o
 
 KDIR := /home/tan/orangepi-build/kernel/orange-pi-5.10-rk35xx
 ARCH ?= arm64

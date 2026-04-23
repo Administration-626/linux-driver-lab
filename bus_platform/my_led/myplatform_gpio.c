@@ -1,4 +1,6 @@
 #include <linux/cdev.h>
+#include <linux/device.h>
+#include <linux/fs.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -6,17 +8,24 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 
 struct mydev_priv {
     struct gpio_desc *led_gpio; // LED GPIO 描述符
     dev_t dev_num; // 设备号
     struct cdev led_chr_dev; // 字符设备结构体
     struct class *led_class; // 设备类
+    struct device *led_dev; // 设备节点
 };
 
 int mydev_open(struct inode *inode, struct file *file)
 {
-    printk("open called\n");
+    struct mydev_priv *priv;
+
+    priv = container_of(inode->i_cdev, struct mydev_priv, led_chr_dev);
+    file->private_data = priv;
+
+    pr_info("chrdev_myled: open called\n");
     return 0;
 }
 
@@ -26,7 +35,7 @@ ssize_t mydev_read(
     size_t count,
     loff_t *ppos)
 {
-    printk("read called\n");
+    pr_info("chrdev_myled: read called\n");
     return 0;
 }
 
@@ -36,7 +45,28 @@ ssize_t mydev_write(
     size_t count,
     loff_t *ppos)
 {
-    printk("write called\n");
+    struct mydev_priv *priv;
+    char write_data;
+    int not_copied;
+
+    pr_info("chrdev_myled: write called\n");
+
+    if (count < sizeof(write_data))
+        return -EINVAL;
+
+    priv = file->private_data;
+    if (!priv)
+        return -ENODEV;
+
+    not_copied = copy_from_user(&write_data, buf, sizeof(write_data));
+    if (not_copied)
+        return -EFAULT;
+
+    if (write_data == '1') {
+        gpiod_set_value(priv->led_gpio, 1); // 点亮 LED
+    } else if (write_data == '0') {
+        gpiod_set_value(priv->led_gpio, 0); // 熄灭 LED
+    }
     return 0;
 }
 
@@ -55,6 +85,7 @@ static int mydev_probe(struct platform_device *pdev)
     struct mydev_priv *priv;
     int ret;
 
+    dev_info(&pdev->dev, "entry probe\n");
     priv = devm_kzalloc(
         &pdev->dev,
         sizeof(*priv),
@@ -65,7 +96,10 @@ static int mydev_probe(struct platform_device *pdev)
     //  GPIO descriptor API
     priv->led_gpio = devm_gpiod_get(&pdev->dev, "led", GPIOD_OUT_LOW);
     if (IS_ERR(priv->led_gpio))
-        return PTR_ERR(priv->led_gpio);
+        return dev_err_probe(
+            &pdev->dev,
+            PTR_ERR(priv->led_gpio),
+            "failed to get led gpio\n");
 
     platform_set_drvdata(
         pdev,
@@ -76,6 +110,7 @@ static int mydev_probe(struct platform_device *pdev)
 
     /* 字符设备驱动 */
     /* 1. 分配字符设备号，在/proc/devices中显示chrdev_myled */
+    dev_info(&pdev->dev, "register chr dev\n");
     ret = alloc_chrdev_region(&priv->dev_num, 0, 1, "chrdev_myled");
     if (ret)
         goto err_alloc_region;
@@ -96,19 +131,16 @@ static int mydev_probe(struct platform_device *pdev)
         goto err_class_create;
     }
 
-    /* 5. 创建设备，创建 /dev/chrdev_myled 设备节点和/sys/class/chrdev_myled 的具体某个设备 */
-    if (IS_ERR(device_create(
-        priv->led_class,
-        NULL,
-        priv->dev_num,
-        NULL,
-        "chrdev_myled"))) { // 设备名称
-        ret = PTR_ERR(device_create(
+    /* 5. 创建设备，创建 /dev/chrdev_myled 设备节点和/sys/class/chrdev_myled
+     * 的具体某个设备 */
+    priv->led_dev = device_create(
             priv->led_class,
             NULL,
             priv->dev_num,
             NULL,
-            "chrdev_myled"));
+            "chrdev_myled"); // 设备名称
+    if (IS_ERR(priv->led_dev)) {
+        ret = PTR_ERR(priv->led_dev);
         goto err_device_create;
     }
 
@@ -121,8 +153,6 @@ err_class_create:
 err_cdev_add:
     unregister_chrdev_region(priv->dev_num, 1);
 err_alloc_region:
-    kfree(priv);
-
     return ret;
 }
 
@@ -155,10 +185,20 @@ static struct platform_driver mydev_driver = {
     },
 };
 
-module_platform_driver(
-    mydev_driver); // 这是一个宏，定义了模块的初始化和退出函数，分别调用
-                   // platform_driver_register() 和 platform_driver_unregister()
-                   // 来注册和注销平台驱动
+static int __init mydev_init(void)
+{
+    pr_info("myplatform_gpio: module init, register platform driver\n");
+    return platform_driver_register(&mydev_driver);
+}
+
+static void __exit mydev_exit(void)
+{
+    pr_info("myplatform_gpio: module exit, unregister platform driver\n");
+    platform_driver_unregister(&mydev_driver);
+}
+
+module_init(mydev_init);
+module_exit(mydev_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("test");
