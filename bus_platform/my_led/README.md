@@ -46,3 +46,17 @@ led_chr_dev_write()
 
 编译了 dtbs 之后，把设备树文件复制到 /boot/dtbs/ 目录下，并重启系统，/sys/firmware/devicetree/base/gpio-leds/myled@0 就会出现，说明设备树节点被正确解析了
 ```
+
+## 要区分三个名字：
+
+driver.name = "myled_platform_driver"
+作用：平台驱动名
+体现：/sys/bus/platform/drivers/myled_platform_driver/
+
+of_match_table = { .compatible = "vendor,myled" }
+作用：设备树匹配依据
+体现：不是直接作为 sysfs 目录名，而是用于匹配设备树里的 compatible
+
+device_create(..., "chrdev_myled")
+作用：字符设备名
+体现：/dev/chrdev_myled 和 /sys/class/chrdev_myled/...

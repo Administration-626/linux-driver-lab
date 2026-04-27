@@ -12,6 +12,9 @@
 
 struct mydev_priv {
     struct gpio_desc *led_gpio; // LED GPIO 描述符
+    struct gpio_desc *key_gpio; // 按键 GPIO 描述符
+    int key_irq; // 按键对应的 IRQ 号
+    bool key_on; // 按键状态
     dev_t dev_num; // 设备号
     struct cdev led_chr_dev; // 字符设备结构体
     struct class *led_class; // 设备类
@@ -77,6 +80,16 @@ struct file_operations mydev_fops = {
     .write = mydev_write,
 };
 
+// 每次上升沿中断翻转 LED 状态，因此两个上升沿完成一次开和关
+static irqreturn_t key_irq_handler(int irq, void *dev_id)
+{
+    struct mydev_priv *priv = dev_id;
+    priv->key_on = !priv->key_on; // 切换按键状态
+    gpiod_set_value(priv->led_gpio, priv->key_on);
+    pr_info("key irq handler: key is %s\n", priv->key_on ? "ON" : "OFF");
+    return IRQ_HANDLED;
+}
+
 /*
 现在是已经match_table里匹配上了， pdev就是 device是传入参数
 */
@@ -97,9 +110,40 @@ static int mydev_probe(struct platform_device *pdev)
     priv->led_gpio = devm_gpiod_get(&pdev->dev, "led", GPIOD_OUT_LOW);
     if (IS_ERR(priv->led_gpio))
         return dev_err_probe(
+            &pdev->dev, PTR_ERR(priv->led_gpio), "failed to get led gpio\n");
+
+    priv->key_gpio = devm_gpiod_get(&pdev->dev, "key", GPIOD_IN);
+    if (IS_ERR(priv->key_gpio))
+        return dev_err_probe(
+            &pdev->dev, PTR_ERR(priv->key_gpio), "failed to get key gpio\n");
+
+    ret =
+        gpiod_set_debounce(priv->key_gpio, 5000); // 设置去抖动时间，单位为微秒
+    if (ret == -ENOTSUPP)
+        dev_warn(
             &pdev->dev,
-            PTR_ERR(priv->led_gpio),
-            "failed to get led gpio\n");
+            "hardware debounce not supported, continue without it\n");
+    else if (ret)
+        return dev_err_probe(&pdev->dev, ret, "failed to set debounce\n");
+
+    priv->key_irq = platform_get_irq(pdev, 0);
+    if (priv->key_irq < 0)
+        return dev_err_probe(&pdev->dev, priv->key_irq, "failed to get irq\n");
+
+    // 中断线程化处理，按键按下和松开都触发中断，使用同一个中断处理函数
+    // key_irq_handler
+    ret = devm_request_threaded_irq(
+        &pdev->dev,
+        priv->key_irq,
+        NULL,
+        key_irq_handler,
+        // 设备树和驱动都写触发类型时，驱动里的 IRQF_TRIGGER_*
+        // 会影响最终触发方式。
+        IRQF_ONESHOT, // handle 为 NULL,必须使用 IRQF_ONESHOT
+        "key_irq",
+        priv); // 将 priv 作为 dev_id 传递给中断处理函数
+    if (ret)
+        return dev_err_probe(&pdev->dev, ret, "failed to request irq\n");
 
     platform_set_drvdata(
         pdev,
@@ -134,11 +178,11 @@ static int mydev_probe(struct platform_device *pdev)
     /* 5. 创建设备，创建 /dev/chrdev_myled 设备节点和/sys/class/chrdev_myled
      * 的具体某个设备 */
     priv->led_dev = device_create(
-            priv->led_class,
-            NULL,
-            priv->dev_num,
-            NULL,
-            "chrdev_myled"); // 设备名称
+        priv->led_class,
+        NULL,
+        priv->dev_num,
+        NULL,
+        "chrdev_myled"); // 设备名称
     if (IS_ERR(priv->led_dev)) {
         ret = PTR_ERR(priv->led_dev);
         goto err_device_create;
@@ -170,8 +214,8 @@ static int mydev_remove(struct platform_device *pdev)
 
 static const struct of_device_id mydev_of_match[] = {
     { .compatible =
-          "vendor,myled" }, // 这是一个字符串，在设备树中用来匹配设备的
-                            // compatible 属性的值
+          "vendor,mykey-irq-led" }, // 这是一个字符串，在设备树中用来匹配设备的
+                                    // compatible 属性的值
     {}
 };
 MODULE_DEVICE_TABLE(of, mydev_of_match);

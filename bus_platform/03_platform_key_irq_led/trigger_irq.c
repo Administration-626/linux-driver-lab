@@ -25,7 +25,7 @@ int mydev_open(struct inode *inode, struct file *file)
     priv = container_of(inode->i_cdev, struct mydev_priv, led_chr_dev);
     file->private_data = priv;
 
-    pr_info("chrdev_myled: open called\n");
+    pr_info("chrdev_mytrigger: open called\n");
     return 0;
 }
 
@@ -35,7 +35,7 @@ ssize_t mydev_read(
     size_t count,
     loff_t *ppos)
 {
-    pr_info("chrdev_myled: read called\n");
+    pr_info("chrdev_mytrigger: read called\n");
     return 0;
 }
 
@@ -49,7 +49,7 @@ ssize_t mydev_write(
     char write_data;
     int not_copied;
 
-    pr_info("chrdev_myled: write called\n");
+    pr_info("chrdev_mytrigger: write called\n");
 
     if (count < sizeof(write_data))
         return -EINVAL;
@@ -94,12 +94,10 @@ static int mydev_probe(struct platform_device *pdev)
         return -ENOMEM;
 
     //  GPIO descriptor API
-    priv->led_gpio = devm_gpiod_get(&pdev->dev, "led", GPIOD_OUT_LOW);
+    priv->led_gpio = devm_gpiod_get(&pdev->dev, "trigger", GPIOD_OUT_LOW);
     if (IS_ERR(priv->led_gpio))
         return dev_err_probe(
-            &pdev->dev,
-            PTR_ERR(priv->led_gpio),
-            "failed to get led gpio\n");
+            &pdev->dev, PTR_ERR(priv->led_gpio), "failed to get led gpio\n");
 
     platform_set_drvdata(
         pdev,
@@ -109,9 +107,9 @@ static int mydev_probe(struct platform_device *pdev)
     dev_info(&pdev->dev, "probe success\n"); // 自动添加设备名称
 
     /* 字符设备驱动 */
-    /* 1. 分配字符设备号，在/proc/devices中显示chrdev_myled */
+    /* 1. 分配字符设备号，在/proc/devices中显示chrdev_mytrigger */
     dev_info(&pdev->dev, "register chr dev\n");
-    ret = alloc_chrdev_region(&priv->dev_num, 0, 1, "chrdev_myled");
+    ret = alloc_chrdev_region(&priv->dev_num, 0, 1, "chrdev_mytrigger");
     if (ret)
         goto err_alloc_region;
 
@@ -124,21 +122,21 @@ static int mydev_probe(struct platform_device *pdev)
     if (ret)
         goto err_cdev_add;
 
-    /* 4. 创建设备类，创建 /sys/class/chrdev_myled 目录 */
-    priv->led_class = class_create(THIS_MODULE, "chrdev_myled");
+    /* 4. 创建设备类，创建 /sys/class/chrdev_mytrigger 目录 */
+    priv->led_class = class_create(THIS_MODULE, "chrdev_mytrigger");
     if (IS_ERR(priv->led_class)) {
         ret = PTR_ERR(priv->led_class);
         goto err_class_create;
     }
 
-    /* 5. 创建设备，创建 /dev/chrdev_myled 设备节点和/sys/class/chrdev_myled
-     * 的具体某个设备 */
+    /* 5. 创建设备，创建 /dev/chrdev_mytrigger
+     * 设备节点和/sys/class/chrdev_mytrigger 的具体某个设备 */
     priv->led_dev = device_create(
-            priv->led_class,
-            NULL,
-            priv->dev_num,
-            NULL,
-            "chrdev_myled"); // 设备名称
+        priv->led_class,
+        NULL,
+        priv->dev_num,
+        NULL,
+        "chrdev_mytrigger"); // 设备名称
     if (IS_ERR(priv->led_dev)) {
         ret = PTR_ERR(priv->led_dev);
         goto err_device_create;
@@ -170,8 +168,8 @@ static int mydev_remove(struct platform_device *pdev)
 
 static const struct of_device_id mydev_of_match[] = {
     { .compatible =
-          "vendor,myled" }, // 这是一个字符串，在设备树中用来匹配设备的
-                            // compatible 属性的值
+          "vendor,mytrigger" }, // 这是一个字符串，在设备树中用来匹配设备的
+                              // compatible 属性的值
     {}
 };
 MODULE_DEVICE_TABLE(of, mydev_of_match);
@@ -180,14 +178,14 @@ static struct platform_driver mydev_driver = {
     .probe = mydev_probe,
     .remove = mydev_remove,
     .driver = {
-        .name = "myled_platform_driver", //  在/sys/bus/platform/drivers/myled_platform_driver
+        .name = "myled_platform_trigger", //  在/sys/bus/platform/drivers/
         .of_match_table = mydev_of_match,
     },
 };
 
 static int __init mydev_init(void)
 {
-    pr_info("myplatform_gpio: module init, register platform driver\n");
+    pr_info("myplatform_gpio: module init, register platform driver, trigger\n");
     return platform_driver_register(&mydev_driver);
 }
 
